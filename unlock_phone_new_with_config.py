@@ -8,7 +8,9 @@ import configparser
 
 # 读取配置文件
 config = configparser.ConfigParser()
-config.read("config.ini")
+config.read("config.ini", encoding='utf-8')
+print(f"Loaded config files: {config.read('config.ini')}")
+print(f"Current device_ip: {config['ADB']['device_ip']}")
 
 
 def send_error_email(error_message):
@@ -66,7 +68,8 @@ def check_adb_device():
             f"adb connect {device_ip}",
             shell=True,
             capture_output=True,
-            text=True,
+            encoding='utf-8',
+            errors='ignore'
         )
         print(f"Connect result: {connect_result.stdout}")
         sleep(2)
@@ -135,7 +138,7 @@ try:
         # Get full window state
         window_state = subprocess.check_output(
             "adb shell dumpsys window", shell=True
-        ).decode()
+        ).decode('utf-8', errors='ignore')
 
         # Check multiple indicators
         if (
@@ -155,7 +158,7 @@ try:
             # Check again
             window_state = subprocess.check_output(
                 "adb shell dumpsys window", shell=True
-            ).decode()
+            ).decode('utf-8', errors='ignore')
             if (
                 "mDreamingLockscreen=false" in window_state
                 or "mKeyguardShowing=false" in window_state
