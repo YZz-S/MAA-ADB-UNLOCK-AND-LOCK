@@ -110,6 +110,13 @@ try:
         send_error_email(error_msg)
         raise Exception("ADB device not found")
 
+    # Check if unlock is required
+    require_unlock = config["ADB"].getboolean("require_unlock", True)
+    if not require_unlock:
+        print("Unlock step skipped as per configuration")
+        # 跳过后续解锁步骤
+        exit()
+
     print("Setting screen resolution to 1280x720...")
     # Set screen resolution
     subprocess.run("adb shell wm size 720x1280", check=True)
@@ -118,7 +125,9 @@ try:
     sleep(3)
     subprocess.Popen("adb shell input swipe 400 1000 400 300")
     sleep(3)
-    subprocess.Popen("adb shell input text 200056")
+    # Get unlock password from config
+    lock_password = config["ADB"]["lock_password"]
+    subprocess.Popen(f"adb shell input text {lock_password}")
     sleep(3)
 
     # Check if screen is unlocked using dumpsys
@@ -139,7 +148,8 @@ try:
             error_msg = "Screen might still be locked! Trying unlock again..."
             print(error_msg)
             # Try unlock again
-            subprocess.Popen("adb shell input text 200056")
+            lock_password = config["ADB"]["lock_password"]
+            subprocess.Popen(f"adb shell input text {lock_password}")
             sleep(3)
 
             # Check again
