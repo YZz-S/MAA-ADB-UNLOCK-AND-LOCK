@@ -5,6 +5,7 @@ from email.header import Header
 from datetime import datetime
 from time import sleep
 import configparser
+import ssl
 
 # 读取配置文件
 config = configparser.ConfigParser()
@@ -38,12 +39,73 @@ def send_error_email(error_message):
         msg["From"] = sender
         msg["To"] = receiver
 
-        # Send email
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(sender, password)
-            server.sendmail(sender, [receiver], msg.as_string())
-            print("Error notification email sent successfully")
+        # Try sending email with different methods
+        email_sent = False
+        last_error = None
+        
+        # Method 1: STARTTLS
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls(context=context)
+                server.login(sender, password)
+                server.sendmail(sender, [receiver], msg.as_string())
+                email_sent = True
+                print("Error notification email sent successfully (STARTTLS)")
+        except smtplib.SMTPResponseException as e:
+            # Handle QQ mail's harmless connection close error
+            if (e.smtp_code in [250, 221] or 
+                "successful" in str(e).lower() or 
+                str(e.smtp_code) == "-1" or
+                b'\x00\x00\x00' in str(e).encode('utf-8', errors='ignore')):
+                email_sent = True
+                print("Error notification email sent successfully (STARTTLS)")
+            else:
+                last_error = e
+                print(f"STARTTLS method failed: {str(e)}")
+        except Exception as e:
+            # Special handling for QQ mail connection close error
+            if ("b'\\x00\\x00\\x00'" in str(e) or 
+                "(-1, b'\\x00\\x00\\x00')" in str(e)):
+                email_sent = True
+                print("Error notification email sent successfully (STARTTLS)")
+            else:
+                last_error = e
+                print(f"STARTTLS method failed: {str(e)}")
+            
+        # Method 2: Direct SSL if STARTTLS failed
+        if not email_sent:
+            try:
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL(smtp_server, 465, context=context) as server:
+                    server.login(sender, password)
+                    server.sendmail(sender, [receiver], msg.as_string())
+                    email_sent = True
+                    print("Error notification email sent successfully (SSL)")
+            except smtplib.SMTPResponseException as e:
+                # Handle QQ mail's harmless connection close error
+                if (e.smtp_code in [250, 221] or 
+                    "successful" in str(e).lower() or 
+                    str(e.smtp_code) == "-1" or
+                    b'\x00\x00\x00' in str(e).encode('utf-8', errors='ignore')):
+                    email_sent = True
+                    print("Error notification email sent successfully (SSL)")
+                else:
+                    last_error = e
+                    print(f"SSL method failed: {str(e)}")
+            except Exception as e:
+                # Special handling for QQ mail connection close error
+                if ("b'\\x00\\x00\\x00'" in str(e) or 
+                    "(-1, b'\\x00\\x00\\x00')" in str(e)):
+                    email_sent = True
+                    print("Error notification email sent successfully (SSL)")
+                else:
+                    last_error = e
+                    print(f"SSL method failed: {str(e)}")
+                
+        if not email_sent and last_error:
+            print(f"Failed to send error email: {str(last_error)}")
+            
     except Exception as e:
         print(f"Failed to send error email: {str(e)}")
 
