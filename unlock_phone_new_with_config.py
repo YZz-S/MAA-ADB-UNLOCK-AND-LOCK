@@ -6,12 +6,16 @@ from datetime import datetime
 from time import sleep
 import configparser
 import ssl
+from resolution_manager import ResolutionManager
 
 # 读取配置文件
 config = configparser.ConfigParser()
 config.read("config.ini", encoding='utf-8')
 print(f"Loaded config files: {config.read('config.ini')}")
 print(f"Current device_ip: {config['ADB']['device_ip']}")
+
+# 初始化分辨率管理器
+resolution_manager = ResolutionManager()
 
 
 def send_error_email(error_message):
@@ -182,9 +186,19 @@ try:
         # 跳过后续解锁步骤
         exit()
 
-    print("Setting screen resolution to 1280x720...")
-    # Set screen resolution
-    subprocess.run("adb shell wm size 720x1280", check=True)
+    # Save current resolution before changing it
+    print("Saving current resolution...")
+    if not resolution_manager.save_original_resolution():
+        print("Warning: Could not save original resolution, will use configured lock resolution for restoration")
+
+    # Set resolution for unlock operation
+    print("Setting resolution for unlock operation...")
+    if not resolution_manager.set_unlock_resolution():
+        error_msg = "Failed to set unlock resolution"
+        print(error_msg)
+        send_error_email(error_msg)
+        # Continue anyway, as resolution change is not critical for unlock
+
     sleep(2)
     subprocess.Popen("adb shell input keyevent 26")
     sleep(3)

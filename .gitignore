@@ -175,3 +175,5 @@ cython_debug/
 
 
 config.ini
+
+# Resolution management temporary files

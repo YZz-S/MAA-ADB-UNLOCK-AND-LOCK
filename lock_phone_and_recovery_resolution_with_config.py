@@ -6,10 +6,14 @@ from email.header import Header
 from datetime import datetime
 import configparser
 import ssl
+from resolution_manager import ResolutionManager
 
 # 读取配置文件
 config = configparser.ConfigParser()
 config.read("config.ini")
+
+# 初始化分辨率管理器
+resolution_manager = ResolutionManager()
 
 
 def send_error_email(error_message):
@@ -168,9 +172,14 @@ def set_resolution_and_launch_app():
             print("Please connect your device and try again.")
             return
 
-        print("Setting screen resolution to 2400x1080...")
-        # Set screen resolution
-        subprocess.run("adb shell wm size 1080x2400", check=True)
+        # Restore original resolution or set lock resolution
+        print("Restoring original resolution...")
+        if not resolution_manager.restore_original_resolution():
+            error_msg = "Failed to restore original resolution"
+            print(error_msg)
+            send_error_email(error_msg)
+            # Continue anyway, as resolution change is not critical for app launch
+
         sleep(2)
 
         # 从 config.ini 中读取包名和应用名称
